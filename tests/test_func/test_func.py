@@ -88,6 +88,18 @@ def test_void_pointer():
     assert out == pv
 
 
+def test_mobula_func():
+    # skip float temporarily
+    ns = [np.int32, np.int64]  # , np.float32, np.float64]
+    pv = 39.39
+    for dtype in ns:
+        a = np.array([pv], dtype=dtype)
+        b = np.empty(a.shape, dtype=dtype)
+        rtn = mobula.func.set_and_return(a, b)
+        assert_almost_equal(a, b)
+        assert_almost_equal(a, rtn)
+
+
 def test_build():
     mobula.func.mul_elemwise.build('cpu', ['float'])
     mobula.func.mul_elemwise.build('cpu', dict(T='int'))

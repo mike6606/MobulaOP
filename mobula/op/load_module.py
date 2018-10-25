@@ -31,9 +31,15 @@ else:
     import imp
     load_module = load_module_py2
 
-MOBULA_KERNEL_REG = re.compile(r'^\s*MOBULA_KERNEL.*?')
-MOBULA_KERNEL_FUNC_REG = re.compile(
-    r'^\s*MOBULA_KERNEL\s*(.*?)\s*\((.*?)\)(?:.*?)*')
+
+def get_func_head_reg(name):
+    return re.compile(r'^\s*{}\s*(.*)'.format(name))
+
+
+MOBULA_KERNEL_REG = get_func_head_reg('MOBULA_(KERNEL|FUNC)')
+
+FUNC_REG = re.compile(
+    r'^\s*(.*?)\s*\((.*?)\)(?:.*?)*')
 CPP_TEMPLATE_REG = re.compile(r'^\s*template\s*\<(.*?)\>\s*')
 
 
@@ -115,12 +121,12 @@ def parse_parameters_list(plist):
         [(DType|TemplateType, variable name), ...]
     """
 
-    g = MOBULA_KERNEL_FUNC_REG.search(plist)
+    g = FUNC_REG.search(plist)
     head, plist = g.groups()
     head_split = re.split(r'\s+', head)
     plist_split = re.split(r'\s*,\s*', plist)
     func_name = head_split[-1]
-    rtn_type = None
+    rtn_type = head_split[-2] if len(head_split) == 3 else None
     pars_list = []
     for decl in plist_split:
         dtype, pname = parse_parameter_decl(decl)
@@ -232,6 +238,26 @@ def op_loader(cfunc, arg_types, ctx, cpp_info):
     if ctx not in CTX_FUNC_MAP:
         CTX_FUNC_MAP[ctx] = dict()
     func_map = CTX_FUNC_MAP[ctx]
+
+    def generate_kernel_code(func_idcode_hash, args_def, func_name, nthread, args_inst):
+        return '''
+MOBULA_DLL void %s(const int device_id, %s) {
+  KERNEL_RUN_BEGIN(device_id);
+  KERNEL_RUN(%s, %s)(%s);
+  KERNEL_RUN_END(device_id);
+}''' % (func_idcode_hash, args_def, func_name, nthread, args_inst)
+
+    def generate_func_code(func_idcode_hash, rtn_type, args_def, func_name, args_inst):
+        if rtn_type is None:
+            rtn_type = 'void'
+        code = '''
+MOBULA_DLL %s %s(%s) {
+''' % (rtn_type, func_idcode_hash, args_def)
+        if rtn_type != 'void':
+            code += '  return '
+        code += '%s(%s);\n}\n' % (func_name, args_inst)
+        return code
+
     if idcode not in func_map:
         # load func
         cpp_fname = cpp_info.cpp_fname
@@ -293,15 +319,12 @@ Please remove `build` directory in custom operator, and rebuild it.""" % (map_da
                     ctype=dtype.cname,
                     name=name
                 ) for dtype, name in zip(ord_cfunc.arg_types, ord_cfunc.arg_names)])
-                nthread = ord_cfunc.arg_names[0]
                 args_inst = ', '.join(ord_cfunc.arg_names)
-                code_buffer += '''
-MOBULA_DLL void %s(const int device_id, %s) {
-  KERNEL_RUN_BEGIN(device_id);
-  KERNEL_RUN(%s, %s)(%s);
-  KERNEL_RUN_END(device_id);
-}''' % (func_idcode_hash, args_def, '{}_kernel'.format(func_name), nthread, args_inst)
-
+                nthread = ord_cfunc.arg_names[0]
+                func_kind = ord_cfunc.func_kind
+                if func_kind == 'KERNEL':
+                    code_buffer += generate_kernel_code(
+                        func_idcode_hash, args_def, '{}_kernel'.format(func_name), nthread, args_inst)
             # generate template functions code
             if use_template and idcode not in tmap:
                 # template function
@@ -330,18 +353,23 @@ MOBULA_DLL void %s(const int device_id, %s) {
                     name=name
                 ) for dtype, name in zip(arg_types, cfunc.arg_names)])
 
-                nthread = cfunc.arg_names[0]
                 template_inst = [template_mapping[tname]
                                  for tname in cfunc.template_list]
                 args_inst = ', '.join(cfunc.arg_names)
                 template_post = '<%s>' % (', '.join(template_inst))
-                code = '''
-MOBULA_DLL void %s(const int device_id, %s) {
-  KERNEL_RUN_BEGIN(device_id);
-  KERNEL_RUN(%s, %s)(%s);
-  KERNEL_RUN_END(device_id);
-}''' % (func_idcode_hash, args_def, '({}_kernel{})'.
-                    format(func_name, template_post), nthread, args_inst)
+                rtn_type = cfunc.rtn_type
+                if rtn_type in template_mapping:
+                    rtn_type = template_mapping[rtn_type]
+
+                nthread = cfunc.arg_names[0]
+
+                func_kind = cfunc.func_kind
+                if func_kind == 'KERNEL':
+                    code = generate_kernel_code(func_idcode_hash, args_def, '({}_kernel{})'.format(
+                        func_name, template_post), nthread, args_inst)
+                else:
+                    code = generate_func_code(
+                        func_idcode_hash, rtn_type, args_def, func_name + template_post, args_inst)
                 tmap[idcode] = code
 
             for code in tmap.values():
@@ -390,6 +418,7 @@ MOBULA_DLL void %s(const int device_id, %s) {
 def get_functions_from_cpp(cpp_fname):
     unmatched_brackets = 0
     func_def = ''
+    func_kind = ''
     func_started = False
     templates = None
     template_list = []
@@ -403,6 +432,7 @@ def get_functions_from_cpp(cpp_fname):
             u = MOBULA_KERNEL_REG.search(line)
             if u is not None:
                 func_def = ''
+                func_kind = u.groups()[0]
                 func_started = True
         # In a declaration of a function
         if func_started:
@@ -429,13 +459,20 @@ def get_functions_from_cpp(cpp_fname):
                 if not use_template:
                     template_list[:] = []
 
-                assert kernel_name.endswith('_kernel'),\
-                    Exception('the postfix of a MOBULA_KERNEL name must be `_kernel`, \
-                        e.g. addition_forward_kernel')
-                func_name = kernel_name[:-len('_kernel')]
+                if func_kind == 'KERNEL':
+                    assert kernel_name.endswith('_kernel'),\
+                        Exception('the postfix of a MOBULA_KERNEL name must be `_kernel`, \
+                            e.g. addition_forward_kernel')
+                    func_name = kernel_name[:-len('_kernel')]
+                elif func_kind == 'FUNC':
+                    func_name = kernel_name
+                else:
+                    raise Exception(
+                        'Unknown function kind: MOBULA_{}'.format(func_kind))
 
                 # Arguments
                 funcdef_args = edict(func_name=func_name,
+                                     func_kind=func_kind,
                                      arg_names=[t[1] for t in par_list],
                                      arg_types=[t[0] for t in par_list],
                                      rtn_type=rtn_type,
