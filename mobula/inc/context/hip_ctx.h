@@ -134,16 +134,18 @@ T *MemcpyDevToDev(T *dst, const T *src, size_t size) {
 
 // parfor for hip device should be called in hip kernel.
 template <typename Func>
-MOBULA_DEVICE void parfor(const int n, Func F) {
+MOBULA_DEVICE void parfor(const size_t n, Func F) {
   // [gridDim.x, blockDim.x]
   const int num_threads = hipGridDim_x * hipBlockDim_x;
   // thread_id is in [0, num_threads)
   const int thread_id = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
-  int start, end;
-  get_parfor_range(n, num_threads, thread_id, &start, &end);
-  for (int i = start; i < end; ++i) {
-    F(i);
-  }
+  INDEX_TYPE_SWITCH(n, {
+    index_t start, end;
+    get_parfor_range(n, num_threads, thread_id, &start, &end);
+    for (index_t i = start; i < end; ++i) {
+      F(i);
+    }
+  });
 }
 
 }  // namespace mobula
