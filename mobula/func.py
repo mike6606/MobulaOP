@@ -17,7 +17,7 @@ def get_idcode_hash(idcode):
     sp = idcode.split(':')
     func_name = sp[0]
     md5 = hashlib.md5()
-    md5.update(idcode[len(func_name)+1:].encode('utf-8'))
+    md5.update(idcode[len(func_name) + 1:].encode('utf-8'))
     return '{}_{}'.format(func_name, md5.hexdigest()[:8])
 
 

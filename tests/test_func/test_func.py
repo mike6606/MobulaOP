@@ -27,7 +27,7 @@ def test_func_kwargs():
     b = np.random.random((5, 5))
     c = np.empty((5, 5))
     mobula.func.mul_elemwise(n=a.size, a=a, b=b, c=c)
-    assert_almost_equal(a*b, c)
+    assert_almost_equal(a * b, c)
 
 
 def test_default_value_op():
@@ -36,9 +36,9 @@ def test_default_value_op():
     value = np.random.random((5, 5))
     op = mobula.op.default_add_op[np.ndarray](value=value)
     c = op(a, b)
-    assert_almost_equal(a+b, c)
+    assert_almost_equal(a + b, c)
     c = op(a)  # a+b[default=value]
-    assert_almost_equal(a+value, c)
+    assert_almost_equal(a + value, c)
 
 
 def test_thread():
