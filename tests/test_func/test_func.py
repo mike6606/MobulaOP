@@ -103,3 +103,8 @@ def test_mobula_func():
 def test_build():
     mobula.func.mul_elemwise.build('cpu', ['float'])
     mobula.func.mul_elemwise.build('cpu', dict(T='int'))
+    code_fname = os.path.join(os.path.dirname(
+        __file__), 'utils/build/cpu/utils_wrapper.cpp')
+    code = open(code_fname).read()
+    assert 'mul_elemwise_kernel<float>' in code
+    assert 'mul_elemwise_kernel<int>' in code

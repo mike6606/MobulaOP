@@ -31,14 +31,17 @@ ENV_PATH = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(ENV_PATH, 'config.yaml')
 with open(CONFIG_PATH) as fin:
     config = edict(yaml.load(fin))
-# Read Config from argv
-for p in sys.argv:
-    if p[0] == '-':
-        k, v = p[1:].split('=')
-        k = k.strip()
-        assert k in config, KeyError('Key `%s` not found in config' % k)
-        config[k] = ast.literal_eval(v)
-        print('Set %s to %s' % (k, v))
+
+
+def pass_argv(argv):
+    # Read Config from argv
+    for p in argv:
+        if p[0] == '-' and '=' in p:
+            k, v = p[1:].split('=')
+            k = k.strip()
+            assert k in config, KeyError('Key `%s` not found in config' % k)
+            config[k] = ast.literal_eval(v)
+            print('Set %s to %s' % (k, v))
 
 
 def save_code_hash(obj, fname):

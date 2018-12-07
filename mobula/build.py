@@ -189,6 +189,7 @@ def run_rule(name):
 if __name__ == '__main__':
     assert len(sys.argv) >= 2, AssertionError(
         'Please add building flag, e.g. python build.py all\nValid flags: {}'.format(' | '.join(BUILD_FLAGS.keys())))
+    pass_argv(sys.argv)
     SRCS = wildcard(['src'], 'cpp')
     with build_context():
         run_rule(sys.argv[1])
