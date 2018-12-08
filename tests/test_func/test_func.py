@@ -72,10 +72,9 @@ def test_const_template():
 
 # @unittest.skip('bug in new CI')
 def test_infer_type_for_const():
-    ns = [np.float32, np.float64] # [np.int32, np.int64, np.float32, np.float64]
+    ns = [np.float32, np.float32] # [np.int32, np.int64, np.float32, np.float64]
     N = 3
     V = 39.39
-    '''
     for dtype in ns:
         out = np.empty(N, dtype=dtype)
         rv = np.array([dtype(V).tolist()], dtype=dtype)
@@ -96,6 +95,7 @@ def test_infer_type_for_const():
     mobula.func.infer_type_for_const(N, rv2, out2)
     # assert_almost_equal(out, rv)
     # assert_almost_equal(out2, dtype(V).tolist())
+    '''
 
 def test_void_pointer():
     pv = 3939
