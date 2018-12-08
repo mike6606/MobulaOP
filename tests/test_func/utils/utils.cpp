@@ -33,7 +33,7 @@ MOBULA_KERNEL infer_type_for_const_kernel(const int n, T value, T* out) {
 }
 
 template <typename T>
-MOBULA_KERNEL infer_type_for_const2_kernel(const int n, T* value, T* out) {
+MOBULA_KERNEL infer_type_for_const2_kernel(const int n, const T* value, T* out) {
   parfor(n, [&](int i) { out[i] = value[0]; });
 }
 
