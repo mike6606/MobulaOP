@@ -83,7 +83,6 @@ def test_infer_type_for_const():
         # assert_almost_equal(out, rv)
         assert_almost_equal(out, dtype(V).tolist())
     '''
-    '''
     dtype = np.float32
     out = np.empty(N, dtype=dtype)
     rv = np.array([dtype(V).tolist()], dtype=dtype)
@@ -98,6 +97,7 @@ def test_infer_type_for_const():
     mobula.func.infer_type_for_const(N, rv, out)
     # assert_almost_equal(out, rv)
     assert_almost_equal(out, dtype(V).tolist())
+    '''
 
 
 def test_void_pointer():
