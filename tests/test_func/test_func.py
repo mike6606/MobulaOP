@@ -70,16 +70,17 @@ def test_const_template():
         assert_almost_equal(np.tile(value, shape), a, atol=atol)
 
 
-@unittest.skip('bug in new CI')
+# @unittest.skip('bug in new CI')
 def test_infer_type_for_const():
     ns = [np.int32, np.int64, np.float32, np.float64]
     N = 3
     V = 39.39
     for dtype in ns:
         out = np.empty(N, dtype=dtype)
-        rv = dtype(V).tolist()
+        rv = np.array([dtype(V).tolist()], dtype=dtype)
         mobula.func.infer_type_for_const(N, rv, out)
-        assert_almost_equal(out, rv)
+        # assert_almost_equal(out, rv)
+        assert_almost_equal(out, dtype(V).tolist())
 
 
 def test_void_pointer():
