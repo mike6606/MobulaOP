@@ -73,7 +73,7 @@ def test_const_template():
 # @unittest.skip('bug in new CI')
 def test_infer_type_for_const():
     ns = [np.int32, np.int64, np.float32, np.float64]
-    N = 3
+    N = 1
     V = 39.39
     for dtype in ns:
         out = np.empty(N, dtype=dtype)
