@@ -93,7 +93,7 @@ def test_infer_type_for_const():
     dtype = np.float64
     out2 = np.empty(N, dtype=dtype)
     rv2 = np.array([dtype(V).tolist()], dtype=dtype)
-    # mobula.func.infer_type_for_const(N, rv2, out2)
+    mobula.func.infer_type_for_const(N, rv2, out2)
     # assert_almost_equal(out, rv)
     # assert_almost_equal(out2, dtype(V).tolist())
 
